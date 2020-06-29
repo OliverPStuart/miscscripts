@@ -2,10 +2,10 @@
 
 
 #This script will take in a few inputs:
-	#A reference file in fasta format, one line per sequence
-	#A list of sites from that fasta file with contig, position, ref and alt allele fields
-	#A replacement specification: do you want to replace the positions with the alternate or a random third character?
-	#And an output filename
+#A reference file in fasta format, one line per sequence
+#A list of sites from that fasta file with contig, position, ref and alt allele fields
+#A replacement specification: do you want to replace the positions with the alternate or a random third character?
+#And an output filename
 
 #This file was motivated as a way to generate alternative reference files to map to for the Melanoplus project
 #I was finding reference bias in my variant calls, and in the past, one way to get around bias in the mapping stage is to switch up the alleles at the variant positions so that reads with alternates don't get downwardly biased mapping scores
@@ -36,7 +36,7 @@ option_list = list(
   make_option(c("-s", "--sitelist"), type="character",  default=NULL,
               help="file with site information, must have contig, position, ref allele, and alt allele fields", metavar="character"),
   make_option(c("-r", "--replacement"), type="character", default="alt", 
-              help="type of modification to make, takes values alt (replace with alternate allele) or other (replace with a random third allele)", metavar="character"),
+              help="type of modification to make, takes values alt (replace with alternate allele), other (replace with a random third allele), or null (replace with N)", metavar="character"),
   make_option(c("-o", "--out"), type="character", default="out.txt", 
               help="output file name [default= %default]", metavar="character")
 ); 
@@ -59,10 +59,9 @@ print("This script assumes that your fasta file is separated into two lines per 
 
 
 #Read file in of positions and alt/ref
-loci <- read.table(opt$sitelist,header=F)
+loci <- read.table(opt$sitelist,header=F,stringsAsFactors=F)
 
 colnames(loci) <- c("CHR","POS","REF","ALT")
-loci$REF <- as.character(loci$REF) ; loci$ALT <- as.character(loci$ALT) ; loci$CHR <- as.character(loci$CHR)
 
 #Read reference
 ref <- readLines(opt$fastaref)
@@ -85,14 +84,14 @@ nuc <- c("A","G","T","C")
 if(opt$replacement == "alt"){
   
   for(i in 1:nrow(loci)){
-  
+    
     if(i == 1){ref.mod <- ref}
-    substr(ref.mod[grep(loci$CHR[1],ref.mod)+1],loci$POS[i],loci$POS[i]) <- loci$ALT[i]
+    substr(ref.mod[grep(loci$CHR[i],ref.mod)+1],loci$POS[i],loci$POS[i]) <- loci$ALT[i]
     
   }
   
-} else {
-#For replacement with a randomly chosen third allele
+} else if(opt$replacement == "alt") {
+  #For replacement with a randomly chosen third allele
   
   for(i in 1:nrow(loci)){
     
@@ -102,6 +101,16 @@ if(opt$replacement == "alt"){
     rep <- sample(nuc[nuc %ni% loci[i,3:4]],1)
     substr(ref.mod[(grep(loci$CHR[i],ref.mod)+1)],loci$POS[i],loci$POS[i]) <- rep
     
+  }
+  
+} else if(opt$replacement = "null"){
+  
+  for(i in 1:nrow(loci)){
+  
+    #add an N
+    if(i == 1){ref.mod <- ref}
+    substr(ref.mod[grep(loci$CHR[i],ref.mod)+1],loci$POS[i],loci$POS[i]) <- "N"
+  
   }
   
 }
